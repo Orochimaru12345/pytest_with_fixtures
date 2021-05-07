@@ -1,7 +1,10 @@
 import json
+import typing
+
 import requests
 
 APPLICATION_JSON = 'application/json'
+rs = requests.Response
 
 
 class Assertions(object):
@@ -12,7 +15,7 @@ class Assertions(object):
         return description
 
     @staticmethod
-    def assert_response_status_code(r: requests.Response, code=200, msg=''):
+    def response_status_code(r: rs, code=200, msg=''):
         result = (r.status_code == code)
         description = (
             'Actual response code from {url} is {actual_code}.\n'
@@ -27,7 +30,7 @@ class Assertions(object):
         assert result, description
 
     @staticmethod
-    def assert_response_is_json(r: requests.Response, msg=''):
+    def response_is_json(r: rs, msg=''):
         content_type = r.headers.get("Content-Type")
         description = (
             'Expected header "Content-Type"'
@@ -63,7 +66,7 @@ class Assertions(object):
             assert False, description
 
     @staticmethod
-    def assert_response_data_has_key(r: requests.Response, response_data: dict, key: str, msg=''):
+    def response_data_has_key(r: rs, response_data: dict, key: str, msg=''):
         result = (key in response_data)
 
         description = (
@@ -82,24 +85,19 @@ class Assertions(object):
         assert result, description
 
     @staticmethod
-    def assert_method_list_templates(r: requests.Response, templates: list, exact_match=False, code=200, msg=''):
-        Assertions.assert_response_status_code(r=r, code=code, msg=msg)
+    def response_data_has_value(r: rs, response_data: dict, key: str, value: str, msg=''):
+        Assertions.response_data_has_key(r=r, response_data=response_data, key=key, msg=msg)
 
-        Assertions.assert_response_is_json(r=r, msg=msg)
-
-        response_data = json.loads(r.text)
-
-        print(response_data)
-
-        result = ('templates' in response_data)
+        result = (response_data[key] == value)
 
         description = (
-            'Response data from {url} must contain key "templates".\n'
+            'Response data from {url} must contain value "{value}" under key "message".\n'
             'But it does not.\n'
             'Formatted response data:\n'
             '{formatted_data}'.format(
                 url=r.url,
-                formatted_data=json.dumps(response_data, indent="  ")
+                formatted_data=json.dumps(response_data, indent="  "),
+                value=value
             )
         )
 
@@ -108,28 +106,87 @@ class Assertions(object):
         assert result, description
 
     @staticmethod
-    def assert_method_delete_template(r: requests.Response, message='', code=200, msg=''):
-        Assertions.assert_response_status_code(r=r, code=code, msg=msg)
+    def templates_list_response(r: rs, templates: list, exact_match=False, code=200, msg=''):
+        Assertions.response_status_code(r=r, code=code, msg=msg)
 
-        Assertions.assert_response_is_json(r=r, msg=msg)
+        Assertions.response_is_json(r=r, msg=msg)
 
         response_data = json.loads(r.text)
 
-        Assertions.assert_response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
+        Assertions.response_data_has_key(r, response_data, 'templates', msg)
 
-        result = (response_data['message'] == message)
+        # check required templates
+        Assertions.value_type_is(r, response_data, 'templates', 'list')
+
+        for t in templates:
+            Assertions.value_in_collection(response_data['templates'], t, 'List of templates', msg=msg)
+
+        if exact_match:
+            for t in response_data['templates']:
+                if t not in templates:
+                    assert False, (
+                        f'Unexpected template "{t}" found in list of templates\n'
+                        f'List of templates:\n'
+                        f'{json.dumps(response_data["templates"], indent="  ")}'
+                    )
+
+    @staticmethod
+    def templates_delete_response(r: rs, message='', code=200, msg=''):
+        Assertions.response_status_code(r=r, code=code, msg=msg)
+
+        Assertions.response_is_json(r=r, msg=msg)
+
+        response_data = json.loads(r.text)
+
+        Assertions.response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
+
+        Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
+
+    @staticmethod
+    def templates_upload_response(r: rs, message='', code=201, msg=''):
+        Assertions.response_status_code(r=r, code=code, msg=msg)
+
+        Assertions.response_is_json(r=r, msg=msg)
+
+        response_data = json.loads(r.text)
+
+        Assertions.response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
+
+        Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
+
+    @staticmethod
+    def templates_install_response(r: rs, message='', code=200, msg=''):
+        Assertions.response_status_code(r=r, code=code, msg=msg)
+
+        Assertions.response_is_json(r=r, msg=msg)
+
+        response_data = json.loads(r.text)
+
+        Assertions.response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
+
+        Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
+
+    @staticmethod
+    def value_type_is(r: rs, response_data: dict, key: str, t='list', msg=''):
+        result = (type(response_data[key]).__name__ == t)
 
         description = (
-            'Response data from {url} must contain value "{message}" under key "message".\n'
-            'But it does not.\n'
+            f'In response data from {r.url} a value under key "{key}" must be of type "{t}".\n'
+            f'But it is {type(response_data[key])}.\n'
             'Formatted response data:\n'
-            '{formatted_data}'.format(
-                url=r.url,
-                formatted_data=json.dumps(response_data, indent="  "),
-                message=message
-            )
+            f'{json.dumps(response_data, indent="  ")}'
         )
 
         description = Assertions._add_msg(description, msg)
 
+        assert result, description
+
+    @staticmethod
+    def value_in_collection(coll: typing.Union[list, dict], value, coll_name, msg=''):
+        result = (value in coll)
+        description = (
+            f'Collection "{coll_name}" does not have value {value}\n'
+            f'Collection data:\n'
+            f'{json.dumps(coll, indent="  ")}'
+        )
         assert result, description

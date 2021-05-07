@@ -1,0 +1,4 @@
+--- # List
+- { id: 1, label: 'Btn1' }
+- { id: 2, label: 'Btn2' }
+- { id: 3, label: 'Btn3' }

@@ -1,0 +1,4 @@
+--- # List
+- { id: 1, label: 'Btn', link: 'https://www.example.org' }
+- { id: 2, label: 'Btn', link: 'https://www.example.org', depends: 1 }
+- { id: 3, label: 'Btn', link: 'https://www.example.org', depends: 2 }
