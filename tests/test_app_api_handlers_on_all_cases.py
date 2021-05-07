@@ -24,10 +24,10 @@ good_template_files = [
     'app_templates/template8.yml',
 ]
 
-invalid_template_files_to_upload = [
+invalid_templates_to_upload = [
     [
         'app_templates/template3_complete_mess.yaml',
-        "Invalid template format!"
+        "Invalid template format\\!"
     ],
     [
         'app_templates/template4_missing_id.yaml',
@@ -39,15 +39,23 @@ invalid_template_files_to_upload = [
     ],
     [
         'app_templates/no_yaml_for_you',
-        "Allowed file types are {'yml', 'yaml'}"
+        "(Allowed file types are {('yml'|'yaml'), ('yml'|'yaml')})"  # regex
     ],
-[
+    [
         'app_templates/text.txt',
-        "Allowed file types are {'yml', 'yaml'}"
-    ]
+        "(Allowed file types are {('yml'|'yaml'), ('yml'|'yaml')})"  # regex
+    ],
+    [
+        'app_templates/template9_missing_label_1.yaml',
+        "Links without labels are not allowed. Error occurred in {'id': 100, 'link': 'https://www.example.org'}"
+    ],
+    [
+        'app_templates/template9_missing_label_2.yaml',
+        "ANY ERROR ABOUT MISSING LABEL"
+    ],
 ]
 
-invalid_template_files_to_install = [
+invalid_templates_to_install = [
     [
         'app_templates/template3_complete_mess.yaml',
         "Invalid template format!"
@@ -59,7 +67,15 @@ invalid_template_files_to_install = [
     [
         'app_templates/template7_missing_all.yaml',
         "No \"id\" field in {}"
-    ]
+    ],
+    [
+        'app_templates/template9_missing_label_1.yaml',
+        "Links without labels are not allowed. Error occurred in {'id': 100, 'link': 'https://www.example.org'}"
+    ],
+    [
+        'app_templates/template9_missing_label_2.yaml',
+        "ANY ERROR ABOUT MISSING LABEL"
+    ],
 ]
 
 template_files_to_delete = [
@@ -68,7 +84,7 @@ template_files_to_delete = [
 
 
 @pytest.mark.ignores_app_state
-class TestFreshAppGetTemplates(object):
+class TestApp(object):
     # noinspection PyMethodMayBeStatic
     def _verify_tmpl_id_in_list(self, app: conftest.App, tmpl_id: str):
         r = app.list_templates()
@@ -89,7 +105,9 @@ class TestFreshAppGetTemplates(object):
 
     # upload
     @pytest.mark.parametrize('tmpl_file', good_template_files)
-    def test_upload_templates(self, app: conftest.App, tmpl_file):
+    def test_upload_templates(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_file
+    ):
         tmpl_id = self._tmpl_id_from_file_name(tmpl_file)
 
         # upload
@@ -103,7 +121,9 @@ class TestFreshAppGetTemplates(object):
         self._verify_tmpl_id_in_list(app, tmpl_id)
 
     @pytest.mark.parametrize('tmpl_id', custom_ids)
-    def test_upload_templates_by_different_custom_ids(self, app: conftest.App, tmpl_id):
+    def test_upload_templates_by_different_custom_ids(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_id
+    ):
         # upload
         r = app.upload_template('app_templates/template1.yaml', tmpl_id)
         A.templates_upload_response(
@@ -114,18 +134,23 @@ class TestFreshAppGetTemplates(object):
         # verify
         self._verify_tmpl_id_in_list(app, tmpl_id.lower())
 
-    @pytest.mark.parametrize(['tmpl_file', 'err_msg'], invalid_template_files_to_upload)
-    def test_upload_invalid_templates(self, app: conftest.App, tmpl_file, err_msg):
+    @pytest.mark.parametrize(['tmpl_file', 'err_msg'], invalid_templates_to_upload)
+    def test_upload_invalid_templates(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_file, err_msg
+    ):
         r = app.upload_template(tmpl_file)
         A.templates_upload_response(
             r,
             err_msg,
             code=400,
-            msg='We should not be able to upload wrong templates'
+            msg='We should not be able to upload wrong templates',
+            regex=True
         )
 
     @pytest.mark.parametrize('tmpl_id', invalid_ids)
-    def test_upload_templates_by_invalid_ids(self, app: conftest.App, tmpl_id):
+    def test_upload_templates_by_invalid_ids(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_id
+    ):
         tmpl_file = 'app_templates/template1.yaml'
         r = app.upload_template(tmpl_file, tmpl_id)
         A.templates_upload_response(
@@ -139,7 +164,9 @@ class TestFreshAppGetTemplates(object):
 
     # install
     @pytest.mark.parametrize('tmpl_file', good_template_files)
-    def test_install_templates(self, app: conftest.App, tmpl_file):
+    def test_install_templates(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_file
+    ):
         tmpl_id = self._tmpl_id_from_file_name(tmpl_file)
 
         # upload
@@ -160,7 +187,9 @@ class TestFreshAppGetTemplates(object):
         )
 
     @pytest.mark.parametrize('tmpl_id', custom_ids)
-    def test_install_templates_by_different_custom_ids(self, app: conftest.App, tmpl_id):
+    def test_install_templates_by_different_custom_ids(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_id
+    ):
         # upload
         r = app.upload_template('app_templates/template1.yaml', tmpl_id=tmpl_id)
         A.templates_upload_response(
@@ -178,8 +207,10 @@ class TestFreshAppGetTemplates(object):
             msg=f'We should be able to install a template by id {tmpl_id}'
         )
 
-    @pytest.mark.parametrize(['tmpl_file', 'err_msg'], invalid_template_files_to_install)
-    def test_install_invalid_templates(self, app: conftest.App, tmpl_file, err_msg):
+    @pytest.mark.parametrize(['tmpl_file', 'err_msg'], invalid_templates_to_install)
+    def test_install_invalid_templates(
+            self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_file, err_msg
+    ):
         tmpl_id = self._tmpl_id_from_file_name(tmpl_file)
 
         # upload
@@ -201,7 +232,7 @@ class TestFreshAppGetTemplates(object):
             message=err_msg
         )
 
-    def test_install_unknown_template(self, app: conftest.App):
+    def test_install_unknown_template(self, app: conftest.App, docker_container: conftest.DockerContainer):
         tmpl_id = 'install_unknown_template'
 
         r = app.install_template(tmpl_id)
@@ -215,7 +246,7 @@ class TestFreshAppGetTemplates(object):
 
     # delete
     @pytest.mark.parametrize('tmpl_file', template_files_to_delete)
-    def test_delete_templates(self, app: conftest.App, tmpl_file):
+    def test_delete_templates(self, app: conftest.App, docker_container: conftest.DockerContainer, tmpl_file):
         tmpl_id = self._tmpl_id_from_file_name(tmpl_file)
 
         # upload
@@ -236,7 +267,8 @@ class TestFreshAppGetTemplates(object):
         )
 
     @pytest.mark.parametrize('tmpl_id', custom_ids)
-    def test_delete_templates_by_different_custom_ids(self, app: conftest.App, tmpl_id):
+    def test_delete_templates_by_different_custom_ids(self, app: conftest.App,
+                                                      docker_container: conftest.DockerContainer, tmpl_id):
         # upload
         r = app.upload_template('app_templates/delete/delete2.yaml', tmpl_id=tmpl_id)
         A.templates_upload_response(
@@ -254,7 +286,7 @@ class TestFreshAppGetTemplates(object):
             msg=f'We should be able to install a template by id {tmpl_id}'
         )
 
-    def test_delete_unknown_template(self, app: conftest.App):
+    def test_delete_unknown_template(self, app: conftest.App, docker_container: conftest.DockerContainer):
         tmpl_id = 'delete_unknown_template'
 
         r = app.delete_template(tmpl_id)
@@ -266,3 +298,26 @@ class TestFreshAppGetTemplates(object):
         )
 
     # list
+    def test_list_of_templates(self, app: conftest.App, docker_container: conftest.DockerContainer):
+        # upload
+        tmpl_id_1 = 'template_for_list_1'
+        r = app.upload_template('app_templates/list/template_for_list_1.yaml')
+        A.templates_upload_response(
+            r,
+            f'Template successfully uploaded. tmpl_id={tmpl_id_1}',
+            msg=f'Upload a simple template with tmpl_id = "{tmpl_id_1}".'
+        )
+        tmpl_id_2 = 'template-for-list-2'
+        r = app.upload_template('app_templates/list/template_for_list_2.yml', tmpl_id_2)
+        A.templates_upload_response(
+            r,
+            f'Template successfully uploaded. tmpl_id={tmpl_id_2}',
+            msg=f'Upload a simple template with tmpl_id = "{tmpl_id_2}".'
+        )
+        # list
+        r = app.list_templates()
+        A.templates_list_response(
+            r,
+            [tmpl_id_1, tmpl_id_2],
+            msg='Both our templates must be visible in the templates list'
+        )

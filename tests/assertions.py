@@ -1,7 +1,7 @@
 import json
-import typing
-
+import re
 import requests
+import typing
 
 APPLICATION_JSON = 'application/json'
 rs = requests.Response
@@ -85,10 +85,13 @@ class Assertions(object):
         assert result, description
 
     @staticmethod
-    def response_data_has_value(r: rs, response_data: dict, key: str, value: str, msg=''):
+    def response_data_has_value(r: rs, response_data: dict, key: str, value='', msg='', value_regex=''):
         Assertions.response_data_has_key(r=r, response_data=response_data, key=key, msg=msg)
 
-        result = (response_data[key] == value)
+        if value_regex != '':
+            result = len(re.findall(pattern=value, string=response_data[key])) > 0
+        else:
+            result = (response_data[key] == value)
 
         description = (
             'Response data from {url} must contain value "{value}" under key "message".\n'
@@ -143,7 +146,7 @@ class Assertions(object):
         Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
 
     @staticmethod
-    def templates_upload_response(r: rs, message='', code=201, msg=''):
+    def templates_upload_response(r: rs, message='', code=201, msg='', regex=False):
         Assertions.response_status_code(r=r, code=code, msg=msg)
 
         Assertions.response_is_json(r=r, msg=msg)
@@ -152,10 +155,17 @@ class Assertions(object):
 
         Assertions.response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
 
-        Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
+        if regex:
+            Assertions.response_data_has_value(
+                r=r, response_data=response_data, key='message', value_regex=message, msg=msg
+            )
+        else:
+            Assertions.response_data_has_value(
+                r=r, response_data=response_data, key='message', value=message, msg=msg
+            )
 
     @staticmethod
-    def templates_install_response(r: rs, message='', code=200, msg=''):
+    def templates_install_response(r: rs, message='', code=200, msg='', regex=False):
         Assertions.response_status_code(r=r, code=code, msg=msg)
 
         Assertions.response_is_json(r=r, msg=msg)
@@ -164,7 +174,14 @@ class Assertions(object):
 
         Assertions.response_data_has_key(r=r, response_data=response_data, key='message', msg=msg)
 
-        Assertions.response_data_has_value(r=r, response_data=response_data, key='message', value=message, msg=msg)
+        if regex:
+            Assertions.response_data_has_value(
+                r=r, response_data=response_data, key='message', value_regex=message, msg=msg
+            )
+        else:
+            Assertions.response_data_has_value(
+                r=r, response_data=response_data, key='message', value=message, msg=msg
+            )
 
     @staticmethod
     def value_type_is(r: rs, response_data: dict, key: str, t='list', msg=''):
