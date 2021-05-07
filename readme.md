@@ -11,10 +11,10 @@ python -m pip install --upgrade docker
 ```shell
 cd tests
 
-// all
+# all
 python -m pytest --html=report.html
 
-// without multiply container restarts
+# without multiply container restarts
 python -m pytest --html=report.html -m "not requires_fresh_app"
 ```
 
