@@ -9,6 +9,8 @@ python -m pip install --upgrade docker
 
 # Run
 ```shell
+cd tests
+
 // all
 python -m pytest --html=report.html
 
